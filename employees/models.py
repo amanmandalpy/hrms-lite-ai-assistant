@@ -47,3 +47,4 @@ class Employee(models.Model):
 
     def __str__(self):
         return f"{self.employee_id} - {self.user.get_full_name() or self.user.username}"
+ 
