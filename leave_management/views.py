@@ -8,7 +8,8 @@ from rest_framework import status
 from .models import LeaveRequest
 from .serializers import LeaveRequestSerializer
 from accounts.permissions import IsHRAdminOrManager
-
+from employees.models import Employee
+from rest_framework.exceptions import PermissionDenied
 
 class LeaveRequestViewSet(viewsets.ModelViewSet):
     serializer_class = LeaveRequestSerializer
@@ -32,7 +33,15 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
         return queryset.filter(employee__user=user)
 
     def perform_create(self, serializer):
-        employee = self.request.user.employee_profile
+        employee = Employee.objects.filter(
+            user=self.request.user
+        ).first()
+
+        if employee is None:
+            raise PermissionDenied(
+                "No employee profile found for this user."
+            )
+
         serializer.save(employee=employee)
 
     def get_permissions(self):
