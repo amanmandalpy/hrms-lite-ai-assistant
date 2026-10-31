@@ -14,7 +14,7 @@ class AttendanceAdmin(admin.ModelAdmin):
         "recorded_by",
     )
     list_filter = ("status", "date")
-    search_fields = (
+    search_fields = (    
         "employee__employee_id",
         "employee__user__username",
     )
