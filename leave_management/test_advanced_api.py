@@ -66,7 +66,6 @@ class LeaveAdvancedAPITests(APITestCase):
         )
 
         self.client.force_authenticate(user=self.employee_user)
-
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -82,11 +81,9 @@ class LeaveAdvancedAPITests(APITestCase):
         approve_url = reverse("leave-request-approve", kwargs={"pk": self.leave.id})
 
         first_response = self.client.post(approve_url)
-
         self.assertEqual(first_response.status_code, status.HTTP_200_OK)
 
         second_response = self.client.post(approve_url)
-
         self.assertEqual(second_response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_rejected_leave_cannot_be_approved(self):
@@ -132,5 +129,56 @@ class LeaveAdvancedAPITests(APITestCase):
             },
             format="json",
         )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_user_without_employee_profile_cannot_apply_leave(self):
+        user_without_profile = User.objects.create_user(
+            username="no_profile", password="TestPass123!"
+        )
+
+        self.client.force_authenticate(user=user_without_profile)
+
+        response = self.client.post(
+            self.url,
+            {
+                "leave_type": "casual",
+                "start_date": str(date.today() + timedelta(days=2)),
+                "end_date": str(date.today() + timedelta(days=3)),
+                "reason": "Personal work",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_hr_admin_can_reject_leave(self):
+        self.client.force_authenticate(user=self.hr_user)
+
+        reject_url = reverse("leave-request-reject", kwargs={"pk": self.leave.id})
+
+        response = self.client.post(
+            reject_url,
+            {"review_comment": "Request rejected"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.leave.refresh_from_db()
+
+        self.assertEqual(self.leave.status, LeaveRequest.LeaveStatus.REJECTED)
+        self.assertEqual(self.leave.reviewed_by, self.hr_user)
+        self.assertIsNotNone(self.leave.reviewed_at)
+
+    def test_rejected_leave_cannot_be_rejected_again(self):
+        self.leave.status = LeaveRequest.LeaveStatus.REJECTED
+        self.leave.save()
+
+        self.client.force_authenticate(user=self.hr_user)
+
+        reject_url = reverse("leave-request-reject", kwargs={"pk": self.leave.id})
+
+        response = self.client.post(reject_url)
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
