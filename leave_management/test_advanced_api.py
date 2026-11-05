@@ -151,6 +151,9 @@ class LeaveAdvancedAPITests(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(
+            response.data["detail"], "No employee profile found for this user."
+        )
 
     def test_hr_admin_can_reject_leave(self):
         self.client.force_authenticate(user=self.hr_user)
